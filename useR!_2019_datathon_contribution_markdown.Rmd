@@ -1,0 +1,457 @@
+---
+title: "useR! 2019 Datathon Contribution"
+author: "Alexander Merdian-Tarko"
+date: "March 1, 2019"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The United Nations Sustainable Development Goals are the blueprint to achieve a better and more sustainable future for all. They address the global challenges we face, including those related to poverty, inequality, climate, environmental degradation, prosperity, and peace and justice. The Goals interconnect and in order to leave no one behind, it ís important that we achieve each Goal and target by 2030. To learn more about the UN Development Goals, click [here](https://www.un.org/sustainabledevelopment/sustainable-development-goals/).
+Zero Hunger is the second and one of the most important Sustainnable Development Goals. Therefore, we chose to analyze the World Bank's [Health Nutrition and Population Statistics database](https://datacatalog.worldbank.org/dataset/health-nutrition-and-population-statistics) with the zero hunger development goal in mind for the [useR! 2019 Datathon](https://user2019.r-project.org/datathon/). 
+First, we cleaned and processed the data. Then we developed a [Shiny app](https://alexandermerdiantarko.shinyapps.io/user-2019-datathon-contribution/) that enables interested people to explore different indicators related to nutrition and and a number of socio-demographic indicators, their relationship as well as their development over time. Data on many indicators related to nutrition is only available for the period from 2000 to 2016 though. 
+We find that in this period many countries and regions have made progress in reducing the number of people who suffer from undernourishment. Some countries and regions have been more successful than others while the situation for some countries even deteriorated in the past years. Incidents like natural catastrophies or wars might cause the rate of undernourishment in a country to rise temporarily for instance. The most precarious situations of undernourishment are found in Africa, South Asia and the Arab World while some countries from these regions actually made the largest developments to improve the situation of their people in regards to hunger.
+We mainly used the libraries Tidyverse and Plotly, the former for data cleaning and processing and the latter for the interactive visualizations. There still lies a lot of potential in our first analysis and app development. One could do more sophisticated in-deepth analyses using decision trees for example or build even better and more interactive visualizations.
+Find below our code to clean and process the data and the code to build our Shiny app as well.
+
+```{r, eval=TRUE}
+
+##### DATA CLEANING AND PROCESSING #####
+
+# set working directory
+setwd("C:/Users/alex.merdian-tarko/Desktop/user-2019-datathon-contribution")
+
+# load libraries
+library(tidyverse)
+
+# disable scientific notation
+options(scipen=999)
+
+# load raw data and mapping files (mapping data available at: https://datahelpdesk.worldbank.org/knowledgebase/articles/906519-world-bank-country-and-lending-groups)
+raw_data <-  read.csv("HNP_StatsData.csv", header=TRUE, sep=",", dec=".")
+region_and_income_group_mapping <- read.csv("region_and_income_group_mapping.csv", header=TRUE, sep=";")
+
+# drop and rename columns
+raw_data$X <- NULL
+names(raw_data)[1] <- "Country.Name"
+names(raw_data) <- gsub("X", "", names(raw_data))
+names(region_and_income_group_mapping)[1] <- "Country.Name"
+
+# create separate dataframe for countries excluding groups
+country_data <- raw_data[which(raw_data$Country.Name %in% region_and_income_group_mapping$Country.Name), ]
+
+# select indicators related to nutrition
+nutrition_indicators <- c("Number of people who are undernourished",
+                          "Prevalence of undernourishment (% of population)",
+                          "Cause of death, by communicable diseases and maternal, prenatal and nutrition conditions (% of total)",
+                          "Consumption of iodized salt (% of households)",
+                          "Diabetes prevalence (% of population ages 20 to 79)",
+                          "Diarrhea treatment (% of children under 5 receiving oral rehydration and continued feeding)",
+                          "Diarrhea treatment (% of children under 5 who received ORS packet)",
+                          "Exclusive breastfeeding (% of children under 6 months)",
+                          "Infant and young child feeding practices, all 3 IYCF (% children ages 6-23 months)",
+                          "Low-birthweight babies (% of births)",
+                          "Malnutrition prevalence, height for age (% of children under 5)",
+                          "Malnutrition prevalence, height for age, female (% of children under 5)",
+                          "Malnutrition prevalence, height for age, male (% of children under 5)",
+                          "Malnutrition prevalence, weight for age (% of children under 5)",
+                          "Malnutrition prevalence, weight for age, female (% of children under 5)",
+                          "Malnutrition prevalence, weight for age, male (% of children under 5)",
+                          "Prevalence of overweight (% of adults)",
+                          "Prevalence of overweight (% of children under 5)",
+                          "Prevalence of overweight, female (% of children under 5)",
+                          "Prevalence of overweight, female (% of female adults)",
+                          "Prevalence of overweight, male (% of children under 5)",
+                          "Prevalence of overweight, male (% of male adults)",
+                          "Prevalence of severe wasting, weight for height (% of children under 5)",
+                          "Prevalence of severe wasting, weight for height, female (% of children under 5)",
+                          "Prevalence of severe wasting, weight for height, male (% of children under 5)",
+                          "Prevalence of wasting (% of children under 5)",
+                          "Prevalence of wasting, female (% of children under 5)",
+                          "Prevalence of wasting, male (% of children under 5)",
+                          "Number of people who are undernourished",
+                          "Prevalence of undernourishment (% of population)",
+                          "Vitamin A supplementation coverage rate (% of children ages 6-59 months)")
+
+# select socio-demographic indicators
+socio_demographic_indicators <- c("Population, total",
+                                  "Rural population",
+                                  "Rural population (% of total population)",
+                                  "Urban population",
+                                  "Urban population (% of total)",
+                                  "Population ages 00-14 (% of total)",
+                                  "Population ages 00-14, female (% of total)",
+                                  "Population ages 00-14, male (% of total)",
+                                  "Population ages 00-14, total",
+                                  "Population ages 0-14, female",
+                                  "Population ages 0-14, male",
+                                  "Population growth (annual %)",
+                                  "Population, female",
+                                  "Population, female (% of total)",
+                                  "Population, male",
+                                  "Population, male (% of total)",
+                                  "Poverty headcount ratio at national poverty line (% of population)",
+                                  "Rural poverty headcount ratio at national poverty lines (% of rural population)",
+                                  "Urban poverty headcount ratio at national poverty lines (% of urban population)",
+                                  "Adolescent fertility rate (births per 1,000 women ages 15-19)",
+                                  "Birth rate, crude (per 1# Death rate, crude (per 1,000 people)",
+                                  "Fertility rate, total (births per woman)",
+                                  "Wanted fertility rate (births per woman)",
+                                  "Life expectancy at birth, female (years)",
+                                  "Life expectancy at birth, male (years)",
+                                  "Life expectancy at birth, total (years)",
+                                  "Mortality rate, infant (per 1,000 live births)",
+                                  "Mortality rate, infant, female (per 1,000 live births)",
+                                  "Mortality rate, infant, male (per 1,000 live births)",
+                                  "Mortality rate, adult, female (per 1,000 female adults)",
+                                  "Mortality rate, adult, male (per 1,000 male adults)",
+                                  "Mortality rate, under-5 (per 1,000)",
+                                  "Mortality rate, under-5, female (per 1,000)",
+                                  "Mortality rate, under-5, male (per 1,000)",
+                                  "Public spending on education, total (% of GDP)",
+                                  "Literacy rate, adult female (% of females ages 15 and above)",
+                                  "Literacy rate, adult male (% of males ages 15 and above)",
+                                  "Literacy rate, adult total (% of people ages 15 and above)",
+                                  "Literacy rate, youth male (% of males ages 15-24)",
+                                  "Literacy rate, youth total (% of people ages 15-24)",
+                                  "Current health expenditure (% of GDP)",
+                                  "Current health expenditure per capita (current US$)",
+                                  "Current health expenditure per capita, PPP (current international $)",
+                                  "Domestic general government health expenditure (% of current health expenditure)",
+                                  "Domestic general government health expenditure (% of GDP)",
+                                  "Domestic general government health expenditure (% of general government expenditure)",
+                                  "Domestic general government health expenditure per capita (current US$)",
+                                  "Domestic general government health expenditure per capita, PPP (current international $)",
+                                  "Domestic private health expenditure (% of current health expenditure)",
+                                  "Domestic private health expenditure per capita (current US$)",
+                                  "Domestic private health expenditure per capita, PPP (current international $)",
+                                  "External health expenditure (% of current health expenditure)",
+                                  "External health expenditure channeled through government (% of external health expenditure)",
+                                  "External health expenditure per capita (current US$)",
+                                  "External health expenditure per capita, PPP (current international $)",
+                                  "GNI per capita, Atlas method (current US$)",
+                                  "Unemployment, female (% of female labor force)",
+                                  "Unemployment, male (% of male labor force)",
+                                  "Unemployment, total (% of total labor force)")
+
+# reshape data and filter indicators of interest
+country_data_filtered_and_reshaped <- country_data %>%
+  gather(Year, Value, -Country.Name, -Country.Code, -Indicator.Name, -Indicator.Code) %>% 
+  filter(Indicator.Name %in% nutrition_indicators | Indicator.Name %in% socio_demographic_indicators) %>% 
+  select(-Indicator.Code) %>% 
+  spread(Indicator.Name, Value)
+
+# map region and income information to filtered country data
+country_data_final <- merge(country_data_filtered_and_reshaped, region_and_income_group_mapping, by=c("Country.Name", "Country.Code"), type="left")
+
+# change order of columns
+country_data_final <- country_data_final[,c(1,2,3,90,91,4:(ncol(country_data_final)-2))]
+
+# clean column names and indicator list
+names(country_data_final) <- gsub("\\(|\\)", "", names(country_data_final))
+names(country_data_final) <- gsub("\\(|\\)", "", names(country_data_final))
+names(country_data_final) <- gsub("%", "per cent", names(country_data_final))
+names(country_data_final) <- gsub(",", "", names(country_data_final))
+names(country_data_final) <- gsub(" ", ".", names(country_data_final))
+
+socio_demographic_indicators <- gsub("\\(|\\)", "", socio_demographic_indicators)
+socio_demographic_indicators <- gsub("\\(|\\)", "", socio_demographic_indicators)
+socio_demographic_indicators <- gsub("%", "per cent", socio_demographic_indicators)
+socio_demographic_indicators <- gsub(",", "", socio_demographic_indicators)
+socio_demographic_indicators <- gsub(" ", ".", socio_demographic_indicators)
+
+nutrition_indicators <- gsub("\\(|\\)", "", nutrition_indicators)
+nutrition_indicators <- gsub("\\(|\\)", "", nutrition_indicators)
+nutrition_indicators <- gsub("%", "per cent", nutrition_indicators)
+nutrition_indicators <- gsub(",", "", nutrition_indicators)
+nutrition_indicators <- gsub(" ", ".", nutrition_indicators)
+
+```
+
+
+```{r tabsets, echo=FALSE}
+
+##### Shiny App #####
+
+# set working directory
+setwd("C:/Users/alex.merdian-tarko/Desktop/user-2019-datathon-contribution")
+
+# load libraries
+library(shiny)
+library(tidyverse)
+library(plotly)
+
+# disable scientific notation
+options(scipen=999)
+
+# load data from csv
+country_data_final <- read.csv("country_data_final.csv", header=TRUE, sep=",", dec=".")
+
+# prepare data for geograhical plots for undernourishment prevalence in 2000 and 2016
+year_map1 <- 2000
+year_map2 <- 2016
+
+map_data1 <- country_data_final %>% 
+  filter(Year==year_map1)
+
+map_data2 <- country_data_final %>% 
+  filter(Year==year_map2)
+
+# prepare data for geographical plot for percentage point change in undernourishment prevalence
+map_data_change <- country_data_final %>% 
+  filter(Year==year_map1 | Year==year_map2) %>% 
+  group_by(Country.Name, Country.Code) %>% 
+  summarize(first=first(Prevalence.of.undernourishment.per.cent.of.population),
+            last=last(Prevalence.of.undernourishment.per.cent.of.population)) %>% 
+  mutate(change=last-first)
+
+# light grey boundaries for map
+l <- list(color = toRGB("grey"), width = 0.5)
+
+# specify map projection/options
+g <- list(
+  showframe = FALSE,
+  showcoastlines = FALSE,
+  projection = list(type = 'Mercator')
+)
+
+
+
+### ui
+ui <- fluidPage(
+  
+  titlePanel("useR! 2019 Datathon Contribution in relation to the UN Sustainable Development Goal 2 - Zero Hunger"),
+
+    navbarPage(
+      
+      "Plots on indicators related to nutrition",
+      
+      tabPanel("Line plots",
+               
+               fluidRow(
+                 
+                 column(3, offset=1,
+                        selectInput("indicator", "Select indicator",
+                                    colnames(country_data_final)[7:(ncol(country_data_final))])
+                        ),
+                 
+                 column(3,
+                        selectInput("country1", "Select left country",
+                                    unique(country_data_final$Country.Name))
+                        ),
+                 
+                 column(3, 
+                        selectInput("country2", "Select right country",
+                                    unique(country_data_final$Country.Name))
+                        )
+                 
+                 ),
+                 
+                 fluidRow(
+                   
+                   column(6,
+                          plotlyOutput("line_plot1")
+                          ),
+                   
+                   column(6,
+                          plotlyOutput("line_plot2")
+                          )
+                   
+                   )
+               
+               ),
+      
+      tabPanel("Scatter plot", 
+               
+               fluidRow(
+                 
+                 column(3, offset=1,
+                        selectInput("indicator_y_axis", "Select indicator for y-axis",
+                                    colnames(country_data_final)[7:(ncol(country_data_final))])),
+                 
+                 column(3,
+                        selectInput("indicator_x_axis", "Select indicator for x-axis",
+                                    colnames(country_data_final)[7:(ncol(country_data_final))])),
+                 
+                 column(3,
+                        sliderInput("year", "Select year",
+                                    min=min(unique(country_data_final$Year)),
+                                    max=max(unique(country_data_final$Year)),
+                                    step=1,
+                                    value=2000,
+                                    animate=TRUE)
+                        )
+                 
+                 ),
+               
+                 plotlyOutput("scatter_plot")
+                 
+               ),
+      
+      tabPanel("Geographic plots",
+               
+               fluidRow(
+                 
+                 column(6, 
+                        plotlyOutput("map1")
+                        ),
+                 
+                 column(6,
+                        plotlyOutput("map2")
+                        )
+                 
+                 ),
+               
+               fluidRow(
+                 
+                 column(6, offset=3,
+                        plotlyOutput("map3")
+                        )
+                 
+                 )
+               )
+      )
+  )
+
+
+
+### server
+server <- function(input, output) {
+  
+  # preparing reactive data for line plot 1
+  line_plot_data1 <- reactive({
+    
+    line_plot_data1 <- country_data_final %>%
+      filter(Country.Name==input$country1)
+    
+    })
+  
+  # rendering line plot 1
+  output$line_plot1 <- renderPlotly({
+    
+    x <- list(title="Year")
+    y <- list(title=input$indicator)
+    
+    plot_ly(line_plot_data1(), 
+            x=~Year, 
+            y=~get(input$indicator), 
+            type="scatter", 
+            mode="lines+markers", 
+            text=~Income.Group,
+            color=~Country.Name, 
+            colors="Set1") %>% 
+      layout(xaxis=x, yaxis=y, title="Development of a certain indicator for a certain country over time")
+    
+    })
+  
+  # preparing reactive data for line plot 2
+  line_plot_data2 <- reactive({
+
+    line_plot_data2 <- country_data_final %>%
+      filter(Country.Name==input$country2)
+
+  })
+
+  # rendering line plot 2
+  output$line_plot2 <- renderPlotly({
+
+    x <- list(title="Year")
+    y <- list(title=input$indicator)
+    
+    plot_ly(line_plot_data2(), 
+            x=~Year, 
+            y=~get(input$indicator), 
+            type="scatter", 
+            mode="lines+markers", 
+            text=~Income.Group,
+            color=~Country.Name, 
+            colors="Set2") %>% 
+      layout(xaxis=x, yaxis=y, title="Development of a certain indicator for a certain country over time")
+
+  })
+  
+  # preparing reactive data for scatter plot
+  scatter_plot_data <- reactive({
+
+    scatter_plot_data <- country_data_final %>%
+      filter(Year==input$year)
+
+    })
+
+  # rendering scatter plot
+  output$scatter_plot <- renderPlotly({
+
+    x <- list(title=input$indicator_x_axis)
+    y <- list(title=input$indicator_y_axis)
+    
+    plot_ly(scatter_plot_data(), 
+            x=~get(input$indicator_x_axis), 
+            y=~get(input$indicator_y_axis), 
+            text=~Country.Name, 
+            color=~Region,
+            size=~Population.total,
+            type="scatter", 
+            mode="markers") %>% 
+      layout(xaxis=x, yaxis=y, title="Scatter plot to compare relationship between nutrion and socio-demographic indicators")
+
+  })
+  
+  # rendering geographical plot 1
+  output$map1 <- renderPlotly({
+
+    plot_geo(map_data1) %>%
+      add_trace(
+        z=~Prevalence.of.undernourishment.per.cent.of.population, color=~Prevalence.of.undernourishment.per.cent.of.population, colors="Reds",
+        text=~Country.Name, locations=~Country.Code, marker=list(line=l)
+      ) %>%
+      colorbar(title="% of population", ticksuffix="%") %>%
+      layout(
+        title="Prevalence of undernourishment (% of population), Year==2000",
+        geo=g
+      )
+
+  })
+
+  # rendering geographical plot 2
+  output$map2 <- renderPlotly({
+    
+    plot_geo(map_data2) %>%
+      add_trace(
+        z=~Prevalence.of.undernourishment.per.cent.of.population, color=~Prevalence.of.undernourishment.per.cent.of.population, colors="Reds",
+        text=~Country.Name, locations=~Country.Code, marker=list(line=l)
+      ) %>%
+      colorbar(title="% of population", ticksuffix="%") %>%
+      layout(
+        title="Prevalence of undernourishment (% of population), Year==2016",
+        geo=g
+      )
+    
+  })
+ 
+  # rendering geographical plot 3
+  output$map3 <- renderPlotly({
+    
+    plot_geo(map_data_change) %>%
+      add_trace(
+        z=~change, color=~change, colors="RdYlBu",
+        text=~Country.Name, locations=~Country.Code, marker=list(line=l)
+      ) %>%
+      colorbar(title=" % point change", ticksuffix="%") %>%
+      layout(
+        title="Percentage point change in prevalence of undernourishment between 2000 and 2016",
+        geo=g
+      )
+    
+  })
+  }
+
+
+
+shinyApp(ui = ui, server = server)
+
+```
+
+
